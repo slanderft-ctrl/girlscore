@@ -1,103 +1,82 @@
-import Image from "next/image";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { WeekCalendar, weekRange } from "@/components/week-calendar";
+import { weekStart } from "@/lib/format";
+import { Notice } from "@/lib/messages";
+import type { Attendance, Session } from "@/lib/types";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+const myLabel: Record<string, string> = {
+  coming: "Du kommer ✓",
+  absent: "Du kommer ikke",
+  no_pass: "Trenger nytt klippekort",
+  attended: "Du var her ✓",
+  no_show: "Ikke møtt",
+};
+
+export default async function CalendarPage({ searchParams }: {
+  searchParams: Promise<{ week?: string; ok?: string; err?: string; makeup?: string }>;
+}) {
+  const params = await searchParams;
+  const week = weekStart(params.week);
+  const { from, to } = weekRange(week);
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data: sessions } = await supabase.from("sessions").select("*, groups(name, location)")
+    .gte("starts_at", from).lt("starts_at", to).eq("cancelled", false).order("starts_at");
+  const ids = (sessions ?? []).map((s) => s.id as string);
+  const [{ data: spots }, { data: mine }] = await Promise.all([
+    supabase.from("session_spots").select("*").in("session_id", ids),
+    user
+      ? supabase.from("attendance").select("*").eq("client_id", user.id).in("session_id", ids)
+      : Promise.resolve({ data: [] as Attendance[] }),
+  ]);
+  const taken = new Map((spots ?? []).map((s) => [s.session_id as string, s.taken as number]));
+  const myRows = new Map(((mine ?? []) as Attendance[]).map((a) => [a.session_id, a]));
+  const now = Date.now();
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div>
+      <div className="mb-4">
+        <h1 className="text-2xl font-semibold">{params.makeup ? "Velg en annen time" : "Timeplan"}</h1>
+        <p className="text-muted">
+          {params.makeup
+            ? "Velg en time med ledig plass for å ta igjen timen du ikke kommer på."
+            : "Trykk på en time for å se gruppen og melde deg på."}
+        </p>
+      </div>
+      <Notice ok={params.ok} err={params.err} />
+      {!user && (
+        <div className="card mb-4 flex flex-wrap items-center justify-between gap-2">
+          <span>Ny her? Velg en time, meld deg på og betal med Vipps.</span>
+          <Link href="/passes" className="btn-ghost">Se priser</Link>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
+      <WeekCalendar
+        week={week}
+        sessions={(sessions ?? []) as Session[]}
+        basePath="/"
+        renderSession={(s) => {
+          const left = s.capacity - (taken.get(s.id) ?? 0);
+          const me = myRows.get(s.id);
+          const past = new Date(s.starts_at).getTime() <= now;
+          return (
+            <Link href={`/class/${s.id}`} className="block text-xs">
+              {me && myLabel[me.status] ? (
+                <span className={me.status === "coming" ? "font-medium text-accent" : "text-muted"}>{myLabel[me.status]}</span>
+              ) : past ? (
+                <span className="text-muted">Ferdig</span>
+              ) : left <= 0 ? (
+                <span className="text-muted">Full</span>
+              ) : (
+                <span className="underline">{left} ledig{left === 1 ? "" : "e"} plass{left === 1 ? "" : "er"}</span>
+              )}
+            </Link>
+          );
+        }}
+      />
     </div>
   );
 }

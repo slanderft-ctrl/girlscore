@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #fbfaf8;
+  --fg: #1c1b19;
+  --muted: #6b6760;
+  --surface: #f1eee9;
+  --line: #e2ddd5;
+  --accent: #2f6f5e;
+  --accent-fg: #ffffff;
+  --danger: #b4372f;
+  --vipps: #ff5b24;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #141412;
+    --fg: #ecebe7;
+    --muted: #a19d95;
+    --surface: #201f1c;
+    --line: #34322e;
+    --accent: #6fbfa6;
+    --accent-fg: #0f1d18;
+    --danger: #f08479;
   }
 }
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  .card { @apply rounded-xl border border-line bg-bg p-4; }
+  .input { @apply mt-1 block w-full rounded-lg border border-line bg-bg px-3 py-2 text-base outline-none focus:border-accent; }
+  .label { @apply block text-sm font-medium; }
+  .btn { @apply inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 font-medium text-[var(--accent-fg)] hover:opacity-90 disabled:opacity-50; }
+  .btn-sm { @apply inline-flex items-center rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-[var(--accent-fg)] hover:opacity-90; }
+  .btn-ghost { @apply inline-flex items-center justify-center rounded-lg border border-line px-3 py-2 hover:bg-surface; }
+  .btn-danger { @apply inline-flex items-center rounded-lg border border-danger px-3 py-2 text-danger hover:bg-surface; }
+  .btn-vipps { @apply bg-[var(--vipps)] text-white; }
 }
