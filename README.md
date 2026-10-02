@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Booking app (Stretching i gruppe)
 
-## Getting Started
+Class booking and class passes for a group stretching studio.
 
-First, run the development server:
+**Clients** (web, Norwegian): sign in with their phone number (SMS code), pick a weekly time and tap **Gå fast** to add it to *Min timeplan*. They are then signed up for every class at that time. If they can't come they tap **Jeg kommer ikke** at least 12 hours before, and no class is used. They can make up a class in another group, book a single class, pause for holidays, and buy passes with Vipps or card.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+**Owner** (`/admin`, Ukrainian, installable on iPhone): today's classes and who is coming, clients who need a new pass or have one class left, groups and their weekly times, a calendar with attendee lists, cancelling a class or a whole period, client pages (schedule, passes, payments), and passes sold in person.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Stack: Next.js (App Router) + Supabase (Postgres, phone auth, row level security, pg_cron) + Vipps MobilePay ePayment API + Stripe Checkout.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How it works
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Groups** have weekly times (e.g. Gruppe 1: Tuesday and Thursday 18:00). Classes are created from them 8 weeks ahead.
+- **Min timeplan**: a client can have any number of weekly times, across groups. Each time takes one of the group's spots.
+- **Attendance**: every client has a row per class: coming, not coming, needs a new pass, attended, no-show, or cancelled.
+- **Cutoff**: 12 hours before each class it is locked and everyone still coming uses one class from their pass. The first class used starts the pass's 30 days.
+- **No pass**: a client whose pass is used up or expired keeps their weekly times but is marked "needs a new pass" and doesn't take a spot. Buying a pass signs them back up automatically.
+- **Cancelled class**: everyone gets their class back.
+- **Payments**: a pass is issued only after Vipps or Stripe confirms the payment (`settlePayment()` re-checks with the provider, then the idempotent `fulfil_payment` database function issues the pass).
 
-## Learn More
+All rules live in database functions in `supabase/migrations/0001_init.sql`; `supabase/tests/rules_test.sql` exercises them on a local Postgres.
 
-To learn more about Next.js, take a look at the following resources:
+## Setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **Supabase**: create a project.
+   - SQL editor: run `supabase/migrations/0001_init.sql`, then enable the `pg_cron` extension (Database → Extensions) and run `0002_cron.sql`, then `supabase/seed.sql` (the three passes and an example group).
+   - Authentication → Sign In / Providers → **Phone**: enable it and connect an SMS provider (e.g. Twilio). This sends the login codes, roughly 0.5–1 kr per SMS.
+2. **Env**: copy `.env.example` to `.env.local` and fill it in. Never commit real keys.
+3. `npm install && npm run dev`, open http://localhost:3000 and sign in with your phone.
+4. Make yourself the owner (SQL editor): `update public.profiles set is_admin = true where phone = '4791234567';`
+5. **Vipps**: in portal.vippsmobilepay.com → Utvikler, create test keys (client ID, client secret, subscription key, merchant serial number) and set the `VIPPS_*` vars. Register a webhook for `epayments.payment.authorized.v1`, `.aborted.v1`, `.expired.v1` and `.terminated.v1` pointing at `<site>/api/webhooks/vipps`. Switch `VIPPS_ENV=production` with production keys when going live.
+6. **Stripe** (optional, card payments): add a webhook endpoint `<site>/api/webhooks/stripe` with the `checkout.session.*` events listed in `.env.example`.
+7. Deploy to Vercel with the same env vars.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## iPhone
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open the site in Safari, tap Share → Add to Home Screen. It opens straight into the owner dashboard.
