@@ -30,7 +30,7 @@ All rules live in database functions in `supabase/migrations/0001_init.sql`; `su
 4. Make yourself the owner (SQL editor): `update public.profiles set is_admin = true where phone = '4791234567';`
 5. **Vipps**: in portal.vippsmobilepay.com → Utvikler, create test keys (client ID, client secret, subscription key, merchant serial number) and set the `VIPPS_*` vars. Register a webhook for `epayments.payment.authorized.v1`, `.aborted.v1`, `.expired.v1` and `.terminated.v1` pointing at `<site>/api/webhooks/vipps`. Switch `VIPPS_ENV=production` with production keys when going live.
 6. **Stripe** (optional, card payments): add a webhook endpoint `<site>/api/webhooks/stripe` with the `checkout.session.*` events listed in `.env.example`.
-7. Deploy to Vercel with the same env vars.
+7. Deploy to Vercel with the same env vars, plus `CRON_SECRET` (any long random string). `vercel.json` runs `/api/cron/daily` every morning: it creates classes ahead and locks due ones as a backup for pg_cron, and the daily request keeps a free Supabase project from pausing (free projects pause after 7 days without activity).
 
 ## iPhone
 
